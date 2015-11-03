@@ -1,0 +1,18 @@
+<header>
+    <img src="assets/bchall.jpg" height="171" />
+</header>
+<md-toolbar layout="row" style="align-items: center">
+    <md-icon style="display:inline-block;">&#xE8B6;</md-icon>
+    <md-input-container md-no-float class="md-subhead">
+        <input ng-model="query.q" placeholder="{{query.types ? 'Search in ' + query.types : 'Search places'}}" ng-change="getLocations()" type="text">
+    </md-input-container>
+    <md-icon style="display:inline-block;" ng-click="clear()">&#xE14C;</md-icon>
+</md-toolbar>
+<content flex>
+    <md-list>
+        <md-list-item ng-repeat="item in items()" ng-click="select(item)">
+            <span class="icon"><img class="material-icons" ng-src="{{getIcon(item)}}" /></span>
+            <span class="label">{{item.name||item.properties.name}}</span>
+        </md-list-item>
+    </md-list>
+</content>

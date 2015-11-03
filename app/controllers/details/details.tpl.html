@@ -1,0 +1,28 @@
+<header>
+    <img src="assets/bcdining2.jpg" height="171" />
+</header>
+<section>
+    <md-button class="md-icon-button" aria-label="Return to search result" ng-click="back()">
+        <md-icon>&#xE5C4;</md-icon>
+    </md-button>
+</section>
+<content flex>
+    <md-content class="md-body-1">
+        <p>{{location.properties.description}}</p>
+    </md-content>
+    <md-list>
+        <md-list-item ng-show="location.properties.fields.phone && location.properties.fields.phone.value">
+            <md-icon class="material-icons">&#xE0CD;</md-icon><p class="md-subhead">{{location.properties.fields.phone.value}}</p>
+        </md-list-item>
+        <md-list-item ng-show="location.properties.fields.email && location.properties.fields.email.value">
+            <md-icon class="material-icons">&#xE0BE;</md-icon><p class="md-subhead">{{location.properties.fields.email.value}}</p>
+        </md-list-item>
+        <md-list-item ng-show="location.properties.fields.website && location.properties.fields.website.value">
+            <md-icon class="material-icons">&#xE89E;</md-icon><p class="md-subhead"><a class="md-primary" href="{{location.properties.fields.website.value}}" target="_blank">www</a></p>
+        </md-list-item>
+    </md-list>
+</content>
+<footer>
+    <md-button class="md-raised">Show on Map</md-button>
+    <md-button class="md-raised md-accent" ng-click="getRoute()">Route</md-button>
+</footer>
