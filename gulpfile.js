@@ -8,6 +8,7 @@
     var del = require('del');
     var runSequence = require('run-sequence');
     var LessPluginAutoPrefix = require('less-plugin-autoprefix');
+    var pkg = require('./package.json');
 
     var AUTOPREFIXER_BROWSERS = [
       'ie >= 9',
@@ -24,6 +25,9 @@
     var autoprefix = new LessPluginAutoPrefix({ browsers: AUTOPREFIXER_BROWSERS });
 
     var config = {
+        path: {
+            release: 'release/'+ pkg.version
+        },
         templateCache: {
             file: 'ng-templates.js',
             options: {
@@ -52,7 +56,7 @@
     // Copy all files at the root level (app)
     gulp.task('copy', ['clean'], function () {
         return gulp.src(['app/assets/**']) 
-                .pipe(gulp.dest('dist/assets/'))
+                .pipe(gulp.dest(config.path.release + '/assets/'))
                 .pipe($.count('copy: ## files were copied.'))
                 .pipe($.size({ title: 'copied' }));
     });
@@ -80,8 +84,8 @@
                   .pipe($.if('*.css', $.cssmin()))
                   .pipe(assets.restore())
                   .pipe($.useref())
-                  .pipe($.htmlReplace({ 'base': '<base href="/dist/">' }))
-                  .pipe(gulp.dest('dist'))
+                  .pipe($.htmlReplace({ 'base': '<base href="'+ config.path.release +'">' }))
+                  .pipe(gulp.dest(config.path.release))
                   .pipe($.size({ title: 'compiled' }));
     });
 
