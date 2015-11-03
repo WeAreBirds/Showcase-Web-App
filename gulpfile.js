@@ -8,6 +8,8 @@
     var del = require('del');
     var runSequence = require('run-sequence');
     var LessPluginAutoPrefix = require('less-plugin-autoprefix');
+    var browserSync = require('browser-sync');
+    var historyApiFallback = require('connect-history-api-fallback');
     var pkg = require('./package.json');
 
     var AUTOPREFIXER_BROWSERS = [
@@ -26,7 +28,7 @@
 
     var config = {
         path: {
-            release: 'release/'+ pkg.version
+            release: 'release/' + pkg.version
         },
         templateCache: {
             file: 'ng-templates.js',
@@ -55,7 +57,7 @@
 
     // Copy all files at the root level (app)
     gulp.task('copy', ['clean'], function () {
-        return gulp.src(['app/assets/**']) 
+        return gulp.src(['app/assets/**'])
                 .pipe(gulp.dest(config.path.release + '/assets/'))
                 .pipe($.count('copy: ## files were copied.'))
                 .pipe($.size({ title: 'copied' }));
@@ -73,7 +75,7 @@
     });
 
     // Scan your HTML for assets & optimize them
-    gulp.task('build:release', ['clean', 'copy','build:less', 'build:ng-templates'], function () {
+    gulp.task('build:release', ['clean', 'copy', 'build:less', 'build:ng-templates'], function () {
         var assets = $.useref.assets({ searchPath: ['.tmp', 'app'] });
 
         return gulp.src(['app/**/*.html', '!**/*.tpl.html'])
@@ -84,7 +86,7 @@
                   .pipe($.if('*.css', $.cssmin()))
                   .pipe(assets.restore())
                   .pipe($.useref())
-                  .pipe($.htmlReplace({ 'base': '<base href="'+ config.path.release +'">' }))
+                  .pipe($.htmlReplace({ 'base': '<base href="/">' }))
                   .pipe(gulp.dest(config.path.release))
                   .pipe($.size({ title: 'compiled' }));
     });
@@ -100,5 +102,17 @@
     gulp.task('watch', function () {
         gulp.watch(['gulpfile.js', 'app/scripts/**/*.js', 'app/controllers/**/*.js'], ["run:jshint"]);
         gulp.watch(['app/less/**.less'], ["build:less"]);
+    });
+
+    gulp.task('serve:release', ['build:release'], function () {
+        browserSync({
+            // Run as an https by uncommenting 'https: true'
+            // Note: this uses an unsigned certificate which on first access
+            //       will present a certificate warning in the browser.
+            // https: true,  
+            port: 5000,
+            server: config.path.release,
+            middleware: [historyApiFallback()]
+        });
     });
 }());
