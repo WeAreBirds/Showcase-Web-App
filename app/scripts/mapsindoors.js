@@ -5,6 +5,12 @@ angular.module('MapsIndoors')
      var control = new mapsindoors.FloorSelector(div, mapsIndoors);
      googleMap.controls[google.maps.ControlPosition.RIGHT_CENTER].push(div);
 
+     mapsIndoors.setDisplayRule("entrance", { from: 19 });
+     mapsIndoors.setDisplayRule("toilet", { from: 19 });
+     mapsIndoors.setDisplayRule("reception", { from: 19 });
+     mapsIndoors.setDisplayRule("info", { from: 16 });
+     mapsIndoors.setDisplayRule("poi", { from: 16 });
+
      return mapsIndoors;
 
  })

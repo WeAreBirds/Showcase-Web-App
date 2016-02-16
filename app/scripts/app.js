@@ -21,10 +21,14 @@ angular.module('MapsIndoors', [
           templateUrl: 'controllers/details/details.tpl.html',
           controller: 'details'
       })
-       .when('/route/', {
-           templateUrl: 'controllers/route/route.tpl.html',
-           controller: 'route'
-       })
+      .when('/route/', {
+          templateUrl: 'controllers/route/route.tpl.html',
+          controller: 'route'
+      })
+      .when("/route/from/:from/to/:to", {
+          templateUrl: "controllers/route/route.tpl.html",
+          controller: "route"
+      })
       .otherwise({
           redirectTo: '/'
       });
@@ -35,7 +39,7 @@ angular.module('MapsIndoors', [
 .run(function run($rootScope, $route) {
 })
 
-.controller('main', ['$scope', '$mdSidenav','mapsIndoors', function ($scope, $mdSidenav, mapsIndoors) {
+.controller('main', ['$scope', '$mdSidenav', 'mapsIndoors', function ($scope, $mdSidenav, mapsIndoors) {
     $scope.toggle = function (mdId) {
         $mdSidenav(mdId).toggle();
     };

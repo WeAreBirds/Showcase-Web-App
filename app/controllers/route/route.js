@@ -1,6 +1,6 @@
 ﻿angular.module('MapsIndoors')
 
-.controller('route', function ($scope, $location, locations, mapsIndoors, directionsRenderer) {
+.controller('route', function ($scope, $location, $routeParams, locations, mapsIndoors, directionsRenderer) {
     var locId = $location.search().destination,
         directions = new mapsindoors.DirectionsService(),
         deffered = $.Deferred();
@@ -62,7 +62,46 @@
         history.back();
     };
 
-    window.navigator.geolocation.getCurrentPosition(getRoute, getRoute);
+    if ($routeParams.from && $routeParams.to) {
+        var from = $routeParams.from,
+            to = $routeParams.to;
+
+        locations.getLocation(from).then(function (from) {
+            if (location) {
+                locations.getLocation(to).then(function (to) {
+                    if (from) {
+                        var origin = {
+                            lat: from.geometry.coordinates[1],
+                            lng: from.geometry.coordinates[0],
+                            floor: from.properties.floor
+                        }, destination = {
+                            lat: to.geometry.coordinates[1],
+                            lng: to.geometry.coordinates[0],
+                            floor: to.properties.floor
+                        };
+
+                        directions.route({
+                            origin: origin,
+                            destination: destination,
+                            travelMode: "WALKING"
+                        }).then(function (result) {
+                            $scope.$apply(function () {
+                                $scope.destination = to,
+                                $scope.legs = result.routes[0].legs,
+                                directionsRenderer.setDirections(result),
+                                directionsRenderer.setLegIndex(0),
+                                deffered.resolve();
+                            });
+                        });
+                    }
+                });
+
+            } else {
+                window.navigator.geolocation.getCurrentPosition(getRoute, getRoute);
+            }
+        })
+    }
+
 })
 
 .directive('routeLeg', function (locations, directionsRenderer, mapsIndoors) {
