@@ -1,10 +1,9 @@
 angular.module('MapsIndoors')
 
-.controller('search', function ($scope, $location, $routeParams, $mdSidenav, search, locations, googleMap) {
-
+.controller('search', function ($scope, $location, $routeParams, $mdSidenav, search, locations, googleMap, mapsIndoors, state) {
     $scope.types = [];
     $scope.categories = {};
-    $scope.query = search.latestQuery || { take: 10 };
+    $scope.query = search.latestQuery || { take: 50 };
     $scope.result = search.latestSearchResult || [];
     $scope.loading = false;
     var delay = 200;
@@ -22,8 +21,9 @@ angular.module('MapsIndoors')
         if ($scope.query.q !== undefined && $scope.query.q.length > 0) {
             $scope.query.q = '';
         } else {
-            $location.path('/search/');
+            $location.path('/' + $routeParams.venue + '/search/');
         }
+        mapsIndoors.clear();
     };
 
     $scope.getLocations = function () {
@@ -31,17 +31,34 @@ angular.module('MapsIndoors')
         if (timer) {
             clearTimeout(timer);
         }
+
         timer = setTimeout(function () {
-            locations.getLocations($scope.query).then(function (data) {
-                var bounds = new google.maps.LatLngBounds();
-                data.forEach(function (item) {
-                    bounds.extend(new google.maps.LatLng(item.geometry.coordinates[1], item.geometry.coordinates[0]));
+            state.getVenue().then(function (venue) {
+                $scope.query.venue = venue.name;
+                locations.getLocations($scope.query).then(function (data) {
+                    var bounds = new google.maps.LatLngBounds();
+                    data.forEach(function (item) {
+                        bounds.extend(new google.maps.LatLng(item.geometry.coordinates[1], item.geometry.coordinates[0]));
+                    });
+                    //googleMap.fitBounds(bounds);
+
+                    $scope.result = data;
+                    $scope.loading = false;
+                    $scope.$apply();
                 });
-                $scope.result = data;
-                $scope.loading = false;
-                $scope.$apply();
             });
         }, delay);
+
+        var locateQuery = angular.copy($scope.query);
+        delete locateQuery.take;
+        if (locateQuery.q || locateQuery.types) {
+            state.getVenue().then(function (venue) {
+                mapsIndoors.locate({ locations: locateQuery, venue: venue.name, suppressOthers: true });
+            });
+        }
+        else {
+            mapsIndoors.clear();
+        }
     };
 
     $scope.getIcon = function (item) {
@@ -81,11 +98,12 @@ angular.module('MapsIndoors')
     };
 
     $scope.select = function (item) {
+        mapsIndoors.clear();
         item = Object(item);
         if (item.hasOwnProperty('properties')) {
-            $location.path('/details/' + item.id);
+            $location.path($routeParams.venue + '/details/' + item.id);
         } else {
-            $location.path('/search/' + item.name);
+            $location.path($routeParams.venue + '/search/' + item.name);
         }
     };
 })

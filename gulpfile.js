@@ -34,8 +34,8 @@
             file: 'ng-templates.js',
             options: {
                 module: 'MapsIndoors',
-                root: 'controllers',
-                standAlone: false
+                //root: 'controllers',
+                standAlone: true
             }
         }
     };
@@ -48,7 +48,7 @@
     });
 
     gulp.task('run:jshint', function () {
-        return gulp.src(['app/scripts/**/*.js', 'app/controllers/**/*.js', 'gulpfile.js'])
+        return gulp.src(['app/scripts/**/*.js', 'app/controllers/**/*.js', 'app/directives/**/*.js', 'gulpfile.js'])
                 .pipe($.jshint.extract())
                 .pipe($.jshint())
                 .pipe($.jshint.reporter('jshint-stylish'))
@@ -64,7 +64,7 @@
     });
 
     gulp.task('build:ng-templates', ['clean'], function () {
-        return gulp.src('app/controllers/**/*.tpl.html')
+        return gulp.src(['app/**/**/*.tpl.html'])
             .pipe($.minifyHtml({ empty: true }))
             .pipe($.angularTemplatecache(
                 config.templateCache.file,
@@ -79,7 +79,7 @@
         var assets = $.useref.assets({ searchPath: ['.tmp', 'app'] });
 
         return gulp.src(['app/**/*.html', '!**/*.tpl.html'])
-                  .pipe($.inject(gulp.src(['.tmp/ng-templates.js'], { read: false }), { name: 'inject:templates', relative: true }))
+                   .pipe($.inject(gulp.src(['.tmp/ng-templates.js'], { read: false }), { name: 'inject:templates', relative: true }))
                   .pipe(assets)
                   .pipe($.if('*.js', $.ngAnnotate()))
                   .pipe($.if('*.js', $.uglify({ preserveComments: 'some' })))
@@ -89,6 +89,7 @@
                   .pipe($.htmlReplace({ 'base': '<base href="/">' }))
                   .pipe(gulp.dest(config.path.release))
                   .pipe($.size({ title: 'compiled' }));
+
     });
 
     // Clean output directory
@@ -100,7 +101,7 @@
     try { require('require-dir')('tasks'); } catch (err) { }
 
     gulp.task('watch', function () {
-        gulp.watch(['gulpfile.js', 'app/scripts/**/*.js', 'app/controllers/**/*.js'], ["run:jshint"]);
+        gulp.watch(['gulpfile.js', 'app/scripts/**/*.js', 'app/directives/**/*.js', 'app/controllers/**/*.js'], ["run:jshint"]);
         gulp.watch(['app/less/**.less'], ["build:less"]);
     });
 

@@ -1,38 +1,107 @@
 ﻿angular.module('MapsIndoors')
 
-.controller('route', function ($scope, $location, $routeParams, locations, mapsIndoors, directionsRenderer) {
-    var locId = $location.search().destination,
+.controller('route', function ($scope, $location, $routeParams, locations, mapsIndoors, googleMap, routeService, directionsRenderer, state) {
+    var predefined,
+        myPosition,
+        destinationId = $location.search().destination,
         directions = new mapsindoors.DirectionsService(),
-        deffered = $.Deferred();
+        autocomplete = new google.maps.places.AutocompleteService({ type: 'geocode' }),
+        places = new google.maps.places.PlacesService(googleMap),
+        animatedPolyline = new google.maps.Polyline({
+            geodesic: true,
+            strokeColor: '#2196F3',
+            strokeOpacity: 1.0,
+            strokeWeight: 2,
+            map: googleMap,
+            zIndex: 200
+        }),
+        animatePath,
+        animation;
 
-    getRoute = function (start) {
-        if (start.code) {
-            console.log(start);
+    $scope.fields = {
+        destination: '',
+        origin: ''
+    };
+
+    $scope.travelMode = 'WALKING';
+    $scope.network = 'VENUE';
+    $scope.avoidStairs = false;
+
+    $scope.destination = {};
+
+    $scope.reversed = false;
+
+    $scope.select = function (location) {
+        if ($scope.reversed) {
+            $scope.fields.destination = location.properties.name;
         } else {
-            var origin = { lat: start.coords.latitude, lng: start.coords.longitude, floor: mapsIndoors.getFloor() };
-            if (locId) {
-                locations.getLocation(locId).then(function (obj) {
-                    var destLoc = { lat: obj.geometry.coordinates[1], lng: obj.geometry.coordinates[0], floor: obj.properties.floor };
-                    directions.route({ origin: origin, destination: destLoc, travelMode: "DRIVING" }).then(function (result) {
-                        $scope.$apply(function () {
-                            $scope.destination = obj;
-                            $scope.legs = result.routes[0].legs;
-                            directionsRenderer.setDirections(result);
-                            directionsRenderer.setLegIndex(0);
-                            deffered.resolve();
-                        });
+            $scope.fields.origin = location.properties.name;
+        }
 
-                    });
-                });
+        if (location.properties.type === 'google_places') {
+            places.getDetails({ placeId: location.properties.placeId }, function (place) {
+                location.geometry = {
+                    type: 'point',
+                    coordinates: [place.geometry.location.lng(), place.geometry.location.lat()]
+                };
+
+                if ($scope.reversed) {
+                    $scope.destination = location;
+                } else {
+                    $scope.origin = location;
+                }
+
+                getRoute();
+            });
+        } else {
+            if ($scope.reversed) {
+                $scope.destination = location;
+            } else {
+                $scope.origin = location;
             }
+
+            getRoute();
         }
     };
 
-    $scope.legs = [];
+    $scope.find = utils.debounce(function () {
+        var query = $scope.reversed ? $scope.fields.destination : $scope.fields.origin;
+        if ((query || '').length > 0) {
+            search(query).then(function (results) {
+                $scope.locations = results;
+                $scope.$apply();
+            });
+        } else {
+            $scope.reset();
+            $scope.$apply();
+        }
+    }, 250);
 
-    $scope.ready = function () {
-        return deffered.promise();
+    $scope.reverse = function () {
+        $scope.reversed = !$scope.reversed;
+        var tmp = $scope.fields.destination;
+        $scope.fields.destination = $scope.fields.origin;
+        $scope.fields.origin = tmp;
+        tmp = $scope.destination;
+        $scope.destination = $scope.origin;
+        $scope.origin = tmp;
+
+        if ($scope.origin && $scope.destination) {
+            getRoute();
+        }
     };
+
+    $scope.switchNetwork = function (network) {
+        $scope.network = network;
+        $scope.find();
+    };
+
+    $scope.setTravelmode = function (mode) {
+        $scope.travelMode = mode;
+        getRoute();
+    };
+
+    $scope.legs = [];
 
     $scope.getLeg = function () {
         return directionsRenderer.getLegIndex();
@@ -59,451 +128,282 @@
     };
 
     $scope.back = function () {
+        clearRoute();
         history.back();
     };
 
-    if ($routeParams.from && $routeParams.to) {
-        var from = $routeParams.from,
-            to = $routeParams.to;
 
-        locations.getLocation(from).then(function (from) {
-            if (location) {
-                locations.getLocation(to).then(function (to) {
-                    if (from) {
-                        var origin = {
-                            lat: from.geometry.coordinates[1],
-                            lng: from.geometry.coordinates[0],
-                            floor: from.properties.floor
-                        }, destination = {
-                            lat: to.geometry.coordinates[1],
-                            lng: to.geometry.coordinates[0],
-                            floor: to.properties.floor
-                        };
+    $scope.reset = function () {
+        if ($scope.reversed) {
+            $scope.destination = null;
+            $scope.fields.destination = '';
+        } else {
+            $scope.origin = null;
+            $scope.fields.origin = '';
+        }
+        if ($scope.network === 'VENUE') {
+            $scope.locations = [myPosition].concat(predefined);
+        } else {
+            $scope.locations = [myPosition];
+        }
+        clearRoute();
+    };
 
-                        directions.route({
-                            origin: origin,
-                            destination: destination,
-                            travelMode: "WALKING"
-                        }).then(function (result) {
-                            $scope.$apply(function () {
-                                $scope.destination = to,
-                                $scope.legs = result.routes[0].legs,
-                                directionsRenderer.setDirections(result),
-                                directionsRenderer.setLegIndex(0),
-                                deffered.resolve();
-                            });
-                        });
-                    }
-                });
+    $scope.$on("$locationChangeStart", function (event) {
+        directionsRenderer.setDirections(null);
+        animatedPolyline.setMap(null);
+        animatePath.stop();
+        $scope.legs = [];
+    });
 
-            } else {
-                window.navigator.geolocation.getCurrentPosition(getRoute, getRoute);
-            }
-        })
+
+    function init(destination) {
+        $scope.$apply(function () {
+            $scope.destination = destination;
+            $scope.fields.destination = destination.properties.name;
+        });
     }
 
-})
+    function search(query) {
+        var deffered = $.Deferred();
+        switch ($scope.network) {
+            case 'VENUE':
+                state.getVenue().then(function (venue) {
+                    locations.getLocations({ q: query, take: 10, venue: venue.name }).then(deffered.resolve);
+                });
+                break;
+            case 'WORLD':
+                autocomplete.getQueryPredictions({ input: query }, function (results) {
+                    var floor = mapsIndoors.getFloor();
+                    results = results.map(function (result) {
+                        return {
+                            type: 'Feature',
+                            properties: {
+                                type: 'google_places',
+                                placeId: result.place_id,
+                                name: result.description,
+                                floor: floor
+                            }
+                        };
+                    });
+                    deffered.resolve(results);
+                });
+                break;
+        }
+        return deffered.promise();
+    }
 
-.directive('routeLeg', function (locations, directionsRenderer, mapsIndoors) {
-    var _cache = {
-        types: {}
-    };
-    function getType(type) {
-        if (_cache.types) {
-            return _cache.types[type];
+    function getMyPosition() {
+        var deffered = $.Deferred();
+        window.navigator.geolocation.getCurrentPosition(function (position) {
+            var coords = position.coords,
+            feature = {
+                type: 'Feature',
+                geometry: {
+                    type: 'Point',
+                    coordinates: [coords.longitude, coords.latitude]
+                },
+                properties: {
+                    name: 'My Position',
+                    type: 'myposition'
+                }
+            };
+
+            deffered.resolve(feature);
+        }, function () {
+            deffered.resolve();
+        });
+
+        return deffered.promise();
+    }
+
+    function getPredefined(venue) {
+        return locations.getLocations({ categories: 'startpoint', venue: venue.name });
+    }
+
+    function getRoute() {
+        if ($scope.origin && $scope.destination) {
+            var origin = $scope.origin,
+                destination = $scope.destination;
+
+            var args = {
+                origin: {
+                    lat: origin.geometry.coordinates[1],
+                    lng: origin.geometry.coordinates[0],
+                    floor: origin.properties.floor
+                },
+                destination: {
+                    lat: destination.geometry.coordinates[1],
+                    lng: destination.geometry.coordinates[0],
+                    floor: destination.properties.floor
+                },
+                travelMode: $scope.travelMode,
+                avoidStairs: $scope.avoidStairs
+            };
+
+            directions.route(args).then(function (result) {
+                $scope.$apply(function () {
+                    $scope.legs = result.routes[0].legs;
+                    animatePath = new AnimatePath({ route: result.routes, legIndex: 0, polyline: animatedPolyline, fps: 60, duration: 5 });
+                    directionsRenderer.setDirections(result);
+                    directionsRenderer.setLegIndex(0);
+
+                });
+
+            });
         }
     }
 
-    locations.getTypes().then(function (types) {
-        types.sort(function (a, b) {
-            return a.name < b.name ? -1 : a.name > b.name ? 1 : 0;
-        }).forEach(function (type) {
-            _cache.types[type.name] = type;
+    google.maps.event.addListener(directionsRenderer, 'legindex_changed', function () {
+        var i = this.getLegIndex();
+
+        animatePath.setLegIndex(i);
+        animatedPolyline.setPath([]);
+        animatedPolyline.setMap(googleMap);
+    });
+
+    AnimatePath = function (args) {
+        var path = [],
+            polyline = args.polyline,
+            duration = args.duration,
+            fps = args.fps || 30,
+            legs = args.route[0].legs,
+            legIndex = args.legIndex || 0,
+            steps, animation,
+            loop = args.loop || false;
+
+        function init() {
+            var steps = legs[legIndex].steps,
+                speed = 0,
+                distance = 0,
+                p0;
+            path.length = 0;
+
+            p0 = steps[0].start_location instanceof google.maps.LatLng ? steps[0].start_location : new google.maps.LatLng(steps[0].start_location);
+            p0.distance = 0;
+            path.push(p0);
+
+            steps.forEach(function (step) {
+                (step.geometry || step.lat_lngs).forEach(function (geometry) {
+                    var p0 = path[path.length - 1],
+                        p1 = geometry instanceof google.maps.LatLng ? geometry : new google.maps.LatLng(geometry);
+                    if (!p0.equals(p1)) {
+                        p1.distance = p0.distance + google.maps.geometry.spherical.computeDistanceBetween(p0, p1);
+                        path.push(p1);
+                    }
+                });
+            });
+
+            clearInterval(animation);
+            speed = path[path.length - 1].distance / duration;
+            animation = setInterval(function () {
+                if (loop && distance > path[path.length - 1].distance) {
+                    distance = 0;
+                }
+
+                distance += speed / fps;
+                polyline.setPath(getPath(distance));
+            }, (1000 / fps));
+        }
+
+
+        function findIndex(distance) {
+            if (distance <= 0) {
+                return 0;
+            }
+
+            for (var i = 0; i < path.length; i++) {
+
+                if (path[i].distance > distance) {
+                    return i - 1;
+                }
+            }
+
+            return path.length - 1;
+        }
+
+        function getPath(distance) {
+            if (distance <= 0) {
+                return [];
+            } else if (distance >= path[path.length - 1].distance) {
+                return path;
+            } else {
+                var i = findIndex(distance),
+                    p0 = path[i],
+                    p1 = path[i + 1],
+                    heading = google.maps.geometry.spherical.computeHeading(p0, p1),
+                    delta = distance - p0.distance,
+                    p = google.maps.geometry.spherical.computeOffset(p0, delta, heading),
+                    result = path.slice(0, i + 1);
+
+                result.push(p);
+
+                return result;
+            }
+        }
+
+        this.setLegIndex = function (index) {
+            if (legIndex != index) {
+                index = index > 0 ? index : 0;
+                index = index < legs.length ? index : legs.length - 1;
+
+                legIndex = index;
+                init();
+            }
+        };
+
+        this.stop = function () {
+            clearInterval(animation);
+        };
+
+        init();
+
+    };
+
+    function clearRoute() {
+        directionsRenderer.setDirections(null);
+        animatedPolyline.setMap(null);
+        animatePath.stop();
+        $scope.legs = [];
+    }
+
+    state.getVenue().then(function (venue) {
+        $.when(getMyPosition(), getPredefined(venue)).then(function () {
+            myPosition = arguments[0];
+            predefined = arguments[1][0];
+
+            if ($scope.network === 'VENUE') {
+                $scope.locations = [myPosition].concat(predefined);
+            } else {
+                $scope.locations = [myPosition];
+            }
+
+            $scope.$apply();
         });
     });
 
-    var colors = {
-        primary: 'rgb(33,150,243)',
-        accent: 'rgb(255,82,82)'
-    };
-
-    function Draw(context, legs) {
-        var ctx = context,
-            icons = {
-                base: function (ctx, cx, cy) {
-                    ctx.save();
-                    ctx.beginPath();
-                    ctx.arc(cx, cy, 13, 0, 2 * Math.PI, false);
-                    ctx.shadowBlur = 2;
-                    ctx.shadowColor = '#a9a9a9';
-                    ctx.shadowOffsetX = 0.5;
-                    ctx.shadowOffsetY = 0.5;
-                    ctx.fillStyle = '#fff';
-                    ctx.fill();
-                    ctx.restore();
-                },
-                elevator: function (ctx, cx, cy) {
-                    this.base(ctx, cx, cy);
-                    var icon = new Image();
-
-                    icon.onload = function () {
-                        ctx.save();
-                        ctx.translate(cx - 9, cy - 9);
-                        ctx.drawImage(icon, 0, 0, 24, 24, 0, 0, 18, 18);
-                        ctx.restore();
-                    };
-                    icon.src = 'https://materialdesignicons.com/api/download/icon/svg/8A9045D4-D6AC-4660-8C55-D622156A1B8C';
-                },
-                venue: function (ctx, cx, cy) {
-                    this.base(ctx, cx, cy);
-                    ctx.save();
-                    ctx.fillStyle = colors.primary;
-                    ctx.font = '18px "Material Icons"';
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = "middle";
-                    ctx.fillText(String.fromCharCode('0xE0AF'), cx, cy);
-                    ctx.restore();
-                },
-                stairs: function (ctx, cx, cy) {
-                    this.base(ctx, cx, cy);
-                    var icon = new Image();
-
-                    icon.onload = function () {
-                        ctx.save();
-                        ctx.translate(cx - 6, cy - 6);
-                        ctx.drawImage(icon, 0, 80, 360, 285, 0, 0, 12, 12);
-                        ctx.restore();
-                    };
-                    icon.src = 'http://www.clipartsfree.net/svg/15761-aiga-stairs-download.svg';
-                },
-                start: function (ctx, cx, cy) {
-                    ctx.save();
-                    ctx.beginPath();
-                    ctx.arc(cx, cy, 10.5, 0, 2 * Math.PI, false);
-                    ctx.fillStyle = '#fff';
-                    ctx.fill();
-                    ctx.lineWidth = 2;
-                    ctx.strokeStyle = colors.primary;
-                    ctx.stroke();
-
-                    //ctx.save();
-                    //ctx.beginPath();
-                    //ctx.arc(cx, cy, 12.5, 0, 2 * Math.PI, false);
-                    //ctx.fillStyle = '#fff';
-                    //ctx.fill();
-                    //ctx.lineWidth = 3;
-                    //ctx.strokeStyle = 'rgba(233,30,99, 0.2)';
-                    //ctx.stroke();
-
-                    //ctx.beginPath();
-                    //ctx.arc(cx, cy, 7, 0, 2 * Math.PI, false);
-                    //ctx.fillStyle = colors.primary;
-                    //ctx.fill();
-                    ctx.restore();
-                },
-                image: function (ctx, cx, cy, url) {
-                    var icon = new Image();
-                    //this.base(ctx, cx, cy);
-                    icon.onload = function () {
-                        var height = this.width > 33 ? (this.height / this.width * 33) : this.height;
-                        var width = this.width > 33 ? 33 : this.width;
-                        ctx.save();
-                        ctx.drawImage(icon, 0, 0, this.width, this.height, cx - (width / 2), cy - (height / 2), width, height);
-                        ctx.restore();
-                    };
-                    icon.src = url;
-                }
-
-            };
-
-        return {
-            icon: function (icon, cx, cy) {
-                var args = [].slice.call(arguments);
-                args[0] = ctx;
-                icons[icon].apply(icons, args);
-            },
-            start: function (i, cx, cy) {
-                if (i === 0) {
-                    this.icon('start', cx, cy);
-                } else if (legs[i - 1]._mi.type === 'google.maps.DirectionsLeg') {
-                    this.icon('venue', cx, cy);
-                } else {
-                    switch (legs[i].steps[0].highway) {
-                        case 'steps':
-                            this.icon('stairs', cx, cy);
-                            break;
-                        case 'elevator':
-                            this.icon('elevator', cx, cy);
-                            break;
-                        default:
-                            break;
-
-                    }
-                }
-            },
-            end: function (i, cx, cy) {
-                if (legs[i]._mi.type === 'google.maps.DirectionsLeg') {
-                    this.icon('venue', cx, cy);
-                } else {
-                    switch (legs[i + 1].steps[0].highway) {
-                        case 'steps':
-                            this.icon('stairs', cx, cy);
-                            break;
-                        case 'elevator':
-                            this.icon('elevator', cx, cy);
-                            break;
-                        default:
-                            break;
-
-                    }
-                }
-            },
-        };
-    }
-
-    var stroke = (function () {
-        var canvas = document.createElement('canvas');
-        canvas.height = '12';
-        canvas.width = '1';
-
-        var ctx = canvas.getContext('2d');
-        ctx.moveTo(0, 4);
-        ctx.lineTo(0, 9);
-        ctx.strokeStyle = colors.primary;
-        ctx.stroke();
-
-        return ctx.createPattern(canvas, 'repeat');
-    })();
-
-    function Labels(element, legs) {
-        var el = element;
-
-        return {
-            start: function (i) {
-                switch (legs[i].steps[0].highway) {
-                    case 'steps':
-                        return 'Stairs level ' + legs[i].end_location.zLevel;
-                    case 'elevator':
-                        return 'Elevator level ' + legs[i].end_location.zLevel;
-                    default:
-                        return '';
-                }
-            },
-            end: function (i) {
-                switch (legs[i + 1].steps[0].highway) {
-                    case 'steps':
-                        return 'Stairs level ' + legs[i].end_location.zLevel;
-                    case 'elevator':
-                        return 'Elevator level ' + legs[i].end_location.zLevel;
-                    default:
-                        return '';
-                }
-            }
-        };
-    }
-
-    var endMarker = new google.maps.Marker();
-
-    google.maps.event.addListener(endMarker, 'click', function () {
-        directionsRenderer.nextLeg();
-    });
-
-    google.maps.event.addListener(directionsRenderer, 'legindex_changed', function () {
-        var i = this.getLegIndex(),
-            legs = this.getDirections().routes[0].legs;
-
-        if (i < legs.length - 1 && (legs[i].end_location.zLevel !== undefined && legs[i].end_location.zLevel !== legs[i + 1].end_location.zLevel)) {
-            var type = legs[i + 1].steps[0].highway,
-                icon = document.createElement('canvas'),
-                ctx = icon.getContext('2d'),
-                start = legs[i + 1].start_location,
-                end = legs[i + 1].end_location;
-
-            icon.height = 32;
-            icon.width = 128;
-
-            ctx.save();
-
-            ctx.beginPath();
-            ctx.fillStyle = colors.accent;
-            ctx.arc(72, 16, 9.5, 0, 2 * Math.PI, false);
-            ctx.rect(16, 6.5, 56, 19);
-            ctx.fill();
-            ctx.beginPath();
-            ctx.fillStyle = '#fff';
-            ctx.arc(16, 16, 11.5, 0, 2 * Math.PI, false);
-            ctx.fill();
-            ctx.lineWidth = 2;
-            ctx.strokeStyle = colors.primary;
-            ctx.stroke();
-            ctx.save();
-            ctx.textBaseline = 'middle';
-            ctx.fillStyle = '#000';
-            ctx.font = '12px Roboto';
-            ctx.fillText(start.zLevel + ' → ' + end.zLevel, 36, 16);
-
-
-            var imgData = icon.toDataURL('image/png');
-
-            endMarker.setOptions({
-                icon: { url: imgData, anchor: new google.maps.Point(16, 16) },
-                position: { lat: start.lat, lng: start.lng },
-                map: this.getMap(),
-                floor: start.zLevel,
-                visible: true
+    if (routeService.destination) {
+        $scope.destination = routeService.destination;
+        $scope.fields.destination = routeService.destination.properties.name;
+    } else if (destinationId) {
+        locations.getLocation(destinationId).then(function (feature) {
+            $scope.$apply(function () {
+                $scope.destination = feature;
+                $scope.fields.destination = feature.properties.name;
             });
-        } else {
-            endMarker.setOptions({
-                visible: false
+        });
+    } else if ($routeParams.from && $routeParams.to) {
+        $.when(locations.getLocation($routeParams.from), locations.getLocation($routeParams.to)).then(function (origin, destination) {
+            $scope.$apply(function () {
+                $scope.destination = destination[0];
+                $scope.fields.destination = destination[0].properties.name;
+
+                $scope.origin = origin[0];
+                $scope.fields.origin = origin[0].properties.name;
+                getRoute();
             });
-        }
-    });
-
-    function link(scope, element, locations) {
-        var i = scope.$index,
-            legs = scope.legs,
-            canvas = document.createElement('canvas'),
-            ctx = canvas.getContext('2d'),
-            draw = new Draw(ctx, legs),
-            labels = new Labels(element, legs),
-            img = getType(scope.destination.properties.type).icon,
-            x = 14;
-
-        if (scope.getLeg() === i) {
-            element.focus();
-        }
-
-
-
-        canvas.style.position = 'fixed';
-        canvas.width = '284';
-        canvas.height = '144';
-        ctx.lineWidth = 2;
-
-        element.append(canvas);
-
-        if (legs.length === 1) {
-            ctx.beginPath();
-            ctx.moveTo(x, 36);
-            ctx.lineTo(x, 120);
-            ctx.strokeStyle = colors.primary;
-            ctx.stroke();
-
-            draw.start(i, x, 24);
-            draw.icon('image', x, 120, img);
-
-            element.append($('<label>Start</label>'));
-            element.append($('<label>' + scope.destination.properties.name + '</label>'));
-        }
-        else if (i > 0 && i < legs.length - 1) {
-            ctx.moveTo(x, 36);
-            ctx.lineTo(x, 120);
-            ctx.strokeStyle = colors.primary;
-            ctx.stroke();
-
-            ctx.beginPath();
-            ctx.moveTo(x, 0);
-            ctx.lineTo(x, 36);
-            ctx.moveTo(x, 120);
-            ctx.lineTo(x, 144);
-            ctx.strokeStyle = stroke;
-            ctx.stroke();
-
-            draw.start(i, x, 24);
-            draw.end(i, x, 120);
-
-            (function () {
-                var index = i;
-                var type = legs[i + 1].steps[0].highway,
-                icon = document.createElement('canvas'),
-                ctx = icon.getContext('2d'),
-                start = legs[i + 1].start_location,
-                end = legs[i + 1].end_location;
-
-                icon.height = 32;
-                icon.width = 128;
-
-                ctx.save();
-
-                ctx.beginPath();
-                ctx.fillStyle = colors.accent;
-                ctx.arc(72, 16, 9.5, 0, 2 * Math.PI, false);
-                ctx.rect(16, 6.5, 56, 19);
-                ctx.fill();
-                ctx.beginPath();
-                ctx.fillStyle = '#fff';
-                ctx.arc(16, 16, 11.5, 0, 2 * Math.PI, false);
-                ctx.fill();
-                ctx.lineWidth = 2;
-                ctx.strokeStyle = colors.primary;
-                ctx.stroke();
-                ctx.save();
-                ctx.textBaseline = 'middle';
-                ctx.fillStyle = '#000';
-                ctx.font = '12px Roboto';
-                ctx.fillText(start.zLevel + ' → ' + end.zLevel, 36, 16);
-
-
-                var imgData = icon.toDataURL('image/png');
-
-                var marker = new google.maps.Marker({
-                    icon: { url: imgData, anchor: new google.maps.Point(16, 16) },
-                    position: { lat: start.lat, lng: start.lng },
-                    map: directionsRenderer.getMap(),
-                    floor: start.zLevel,
-                    visible: false
-                });
-
-
-
-            })();
-
-
-            element.append($('<label>' + labels.start(i) + '</label>'));
-            element.append($('<label>' + labels.end(i) + '</label>'));
-
-            console.log(labels.end(i));
-        } else if (i === 0) {
-            ctx.beginPath();
-            ctx.moveTo(x, 36);
-            ctx.lineTo(x, 120);
-            ctx.strokeStyle = colors.primary;
-            ctx.stroke();
-
-            ctx.beginPath();
-            ctx.moveTo(x, 120);
-            ctx.lineTo(x, 144);
-            ctx.strokeStyle = stroke;
-            ctx.stroke();
-
-            draw.start(i, x, 24);
-            draw.end(i, x, 120);
-
-            element.append($('<label>Start</label>'));
-            element.append($('<label>' + labels.end(i) + '</label>'));
-        } else if (i === legs.length - 1) {
-            ctx.moveTo(x, 29);
-            ctx.lineTo(x, 0);
-            ctx.strokeStyle = stroke;
-            ctx.stroke();
-
-            ctx.beginPath();
-            ctx.moveTo(x, 36);
-            ctx.lineTo(x, 120);
-            ctx.strokeStyle = colors.primary;
-            ctx.stroke();
-
-            draw.start(i, x, 24);
-            draw.icon('image', x, 120, img);
-            element.append($('<label>' + labels.start(i) + '</label>'));
-            element.append($('<label>' + scope.destination.properties.name + '</label>'));
-        }
-
+        });
+    } else {
+        $location.path('/search/');
     }
-
-    return {
-        restrict: 'E',
-        scope: true,
-        link: link
-    };
 });

@@ -1,5 +1,9 @@
 ﻿@import "./theme.less";
 
+.md-errors-spacer {
+    display: none;
+}
+
 md-icon:focus {
     outline: 0;
 }
@@ -21,14 +25,17 @@ md-list-item span.label {
 }
 
 md-list-item span.icon {
+    display: flex;
     max-height: 40px;
     max-width: 40px;
     overflow: hidden;
+    line-height: 0;
 }
 
 md-list-item span.icon img {
     max-height: 40px;
     max-width: 40px;
+    vertical-align: text-top;
 }
 
 md-sidenav {
@@ -51,12 +58,24 @@ md-sidenav header {
 }
 
 md-sidenav section {
+    display: flex;
+    -ms-flex-direction: column;
+    -webkit-flex-direction: column;
+    flex-direction: column;
+}
+
+md-sidenav section nav {
+    display: flex;
+    -ms-flex-direction: row;
+    -webkit-flex-direction: row;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
     min-height: 64px;
-    line-height: 64px;
 }
 
 md-sidenav section > .md-icon-button:first-child {
-    margin: 0;
+    //margin: 0;
 }
 
 md-sidenav content {
@@ -82,29 +101,25 @@ md-sidenav md-content {
     cursor: default;
 }
 
-route-leg {
-    position: relative;
-    display: block;
-    height: 144px;
-    padding: 0 16px;
+
+.share-location-dialog md-input-container {
+    width: 100%;
+    display: flex;
+    -ms-flex-direction: row;
+    -webkit-flex-direction: row;
+    flex-direction: row;
+    align-items: center;
+
+    input {
+        color: rgba(0,0,0,.87);
+        border: 1px solid rgba(0,0,0,.25);
+    }
 }
 
-route-leg:focus, route-leg.selected {
-    background-color: @C200;
-    outline: none;
-}
-
-route-leg:hover {
-    background-color: @C200;
-}
-
-route-leg label {
-    display: block;
-    margin-left: 56px;
-    line-height: 48px;
-}
-
-route-leg label:last-child {
-    position: absolute;
-    top: 96px;
+.location-detail-title {
+    margin-top: -46px;
+    margin-left: 16px;
+    color:#fff;
+    font-size:20px;
+    text-shadow: 0 0 10px rgba(0, 0, 0, 0.6);
 }

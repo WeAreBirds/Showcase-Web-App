@@ -1,15 +1,79 @@
-<header>
-    <img src="assets/bcdining.jpeg" height="171" />
-</header>
-<section>
-    <md-button class="md-icon-button" aria-label="Return to search result" ng-click="back()">
-        <md-icon>&#xE5C4;</md-icon>
-    </md-button>
+<section class="route">
+    <header>
+        <img src="assets/bcdining.jpeg" height="171" />
+    </header>
+    <section class="search">
+        <nav>
+            <md-button class="md-icon-button" aria-label="Return to search result" ng-click="back()">
+                <md-icon>&#xE5C4;</md-icon>
+            </md-button>
+            <div class="travelmode">
+                <md-button class="md-icon-button" ng-class="{ 'active': travelMode === 'WALKING' }" aria-label="" ng-click="setTravelmode('WALKING')">
+                    <md-icon>&#xE536;</md-icon>
+                </md-button>
+                <md-button class="md-icon-button" ng-class="{ 'active': travelMode === 'BICYCLING' }" aria-label="" ng-click="setTravelmode('BICYCLING')">
+                    <md-icon>&#xE52F;</md-icon>
+                </md-button>
+                <md-button class="md-icon-button" ng-class="{ 'active': travelMode === 'TRANSIT' }" aria-label="" ng-click="setTravelmode('TRANSIT')">
+                    <md-icon>&#xE535;</md-icon>
+                </md-button>
+                <md-button class="md-icon-button" ng-class="{ 'active': travelMode === 'DRIVING' }" aria-label="" ng-click="setTravelmode('DRIVING')">
+                    <md-icon>&#xE531;</md-icon>
+                </md-button>
+            </div>
+        </nav>
+        <div class="searchbox-container md-body-1">
+            <md-input-container md-no-float>
+                <input type="text"
+                       placeholder="{{network === 'WORLD' ? 'Search in Google Maps' : 'Search on venue'}}"
+                       ng-model="fields.origin"
+                       ng-readonly="reversed"
+                       ng-change="find()" />
+                <i class="material-icons" ng-if="fields.origin.length > 0 && !reversed" ng-click="reset()">&#xE14C;</i>
+            </md-input-container>
+        </div>
+        <div class="searchbox-container md-body-1">
+            <md-input-container md-no-float>
+                <input type="text"
+                       placeholder="{{network === 'WORLD' ? 'Search in Google Maps' : 'Search on venue'}}"
+                       ng-model="fields.destination"
+                       ng-readonly="!reversed"
+                       ng-change="find()" />
+                <i class="material-icons" ng-if="fields.destination.length > 0 && reversed" ng-click="reset()">&#xE14C;</i>
+            </md-input-container>
+        </div>
+        <div class="checkbox-container md-body-1">
+            <md-checkbox ng-model="avoidStairs" aria-label="Avoid stairs?">
+                Avoid stairs?
+            </md-checkbox>
+        </div>
+        <md-button class="switch-direction md-icon-button" aria-label="" ng-click="reverse()">
+            <md-icon>&#xE8D5;</md-icon>
+        </md-button>
+    </section>
+    <ul class="network" ng-if="legs.length === 0">
+        <li ng-class="network === 'VENUE' ? 'active' : ''">
+            <md-button class="md-icon-button" aria-label="" ng-click="switchNetwork('VENUE')">
+                <md-icon>&#xE7EE;</md-icon>
+            </md-button>
+        </li>
+        <li ng-class="network === 'WORLD' ? 'active' : ''">
+            <md-button class="md-icon-button" aria-label="" ng-click="switchNetwork('WORLD')">
+                <md-icon>&#xE80B;</md-icon>
+            </md-button>
+        </li>
+    </ul>
+    <content flex>
+        <md-list class="results" ng-if="legs.length === 0">
+            <md-list-item ng-repeat="location in locations" ng-click="select(location)">
+                <list-icon src="location"></list-icon>
+                <span class="label" aria-label="{{location.name||location.properties.name}}">{{location.name||location.properties.name}}</span>
+            </md-list-item>
+        </md-list>
+        <route-leg ng-repeat="leg in legs" ng-click="setLeg($index)" ng-class="{selected: $index==getLeg()}"></route-leg>
+    </content>
+    <footer ng-if="legs.length > 0">
+        <md-button class="md-raised" ng-disabled="isFirstLeg()" ng-click="prevLeg()">Previous</md-button>
+        <md-button class="md-raised md-accent" ng-disabled="isLastLeg()" ng-click="nextLeg()">Next</md-button>
+    </footer>
 </section>
-<content flex>
-    <route-leg ng-repeat="leg in legs" ng-click="setLeg($index)" ng-class="{selected: $index==getLeg()}"></route-leg>
-</content>
-<footer>
-    <md-button class="md-raised" ng-disabled="isFirstLeg()" ng-click="prevLeg()">Previous</md-button>
-    <md-button class="md-raised md-accent" ng-disabled="isLastLeg()" ng-click="nextLeg()">Next</md-button>
-</footer>
