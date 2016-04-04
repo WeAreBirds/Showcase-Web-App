@@ -1,11 +1,52 @@
 ﻿@Primary: #2196F3;
+@C50: #E3F2FD;
+@C100: #BBDEFB;
 @C200: #90CAF9;
-
+@C300: #64B5F6;
+@C400: #42A5F5;
+@C500: #2196F3;
+@C600: #1E88E5;
+@C700: #1976D2;
+@C800: #1565C0;
+@C900: #0D47A1;
 @Accent: #F44336;
 
 /*Changes to the theme*/
+
+input::-webkit-input-placeholder {
+    color: rgba(255,255,255,0.75);
+}
+
+input:-moz-placeholder { /* Firefox 18- */
+    color: rgba(255,255,255,0.75);
+}
+
+input::-moz-placeholder { /* Firefox 19+ */
+    color: rgba(255,255,255,0.75);
+}
+
+input:-ms-input-placeholder {
+    color: rgba(255,255,255,0.75);
+}
+
+::-ms-clear {
+    display: none;
+}
 
 md-input-container:not(.md-input-invalid).md-input-focused .md-input {
     color: #fff;
     border-color: #fff;
 }
+
+md-input-container:not(.md-input-invalid).md-input-focused .md-input[readonly],
+md-input-container .md-input[readonly] {
+    padding-bottom: 2px;
+    color: @C100;
+    border-bottom: 1px @C100 dashed;
+}
+
+md-input-container .md-input {
+    color: @C100;
+    border-color: @C100;
+}
+

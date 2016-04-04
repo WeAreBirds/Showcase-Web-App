@@ -70,8 +70,12 @@
     <Content Include="app\assets\bcdining2.jpg" />
     <Content Include="app\assets\bchall.jpg" />
     <Content Include="app\controllers\details\details.js" />
+    <Content Include="app\controllers\details\share.tpl.html" />
     <Content Include="app\controllers\route\route.js" />
     <Content Include="app\controllers\search\search.js" />
+    <Content Include="app\directives\list-icon\list-icon.js" />
+    <Content Include="app\directives\list-icon\list-icon.tpl.html" />
+    <Content Include="app\directives\route_leg\route_leg.js" />
     <Content Include="app\index.html" />
     <Content Include="app\controllers\details\details.tpl.html" />
     <Content Include="app\controllers\route\route.tpl.html" />
@@ -81,6 +85,7 @@
     <Content Include="app\scripts\mapsindoors.js" />
     <None Include="app\less\floor-selector.less" />
     <None Include="app\less\main.less" />
+    <Content Include="app\less\route.less" />
     <None Include="app\less\theme.less" />
     <Content Include="gulpfile.js" />
     <Content Include="packages.config" />
@@ -94,7 +99,9 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <Content Include="Web.config" />
+    <Content Include="Web.config">
+      <SubType>Designer</SubType>
+    </Content>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -117,7 +124,7 @@
           <AutoAssignPort>True</AutoAssignPort>
           <DevelopmentServerPort>57390</DevelopmentServerPort>
           <DevelopmentServerVPath>/</DevelopmentServerVPath>
-          <IISUrl>http://localhost:54119/</IISUrl>
+          <IISUrl>http://localhost:54155/</IISUrl>
           <NTLMAuthentication>False</NTLMAuthentication>
           <UseCustomServer>False</UseCustomServer>
           <CustomServerUrl>

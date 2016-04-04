@@ -1,12 +1,21 @@
 <header>
-    <img src="assets/bcdining2.jpg" height="171" />
+    <img ng-src="{{location.properties.fields.imageurl.value || 'assets/Nyt_tek_fra_web.jpg'}}" height="171" />
+    <h1 class="location-detail-title">{{location.properties.name}}</h1>
 </header>
-<section>
-    <md-button class="md-icon-button" aria-label="Return to search result" ng-click="back()">
-        <md-icon>&#xE5C4;</md-icon>
-    </md-button>
+<section class="details">
+    <nav>
+        <md-button class="md-icon-button" aria-label="Return to search result" ng-click="back()">
+            <md-icon>&#xE5C4;</md-icon>
+        </md-button>
+        <md-button class="md-icon-button" ng-click="share()">
+            <md-icon>&#xE80D;</md-icon>
+        </md-button>
+    </nav>
 </section>
 <content flex>
+    <md-content class="md-body-1">
+        <p>{{location.properties.aliases ? location.properties.aliases.join(', ') : ''}}</p>
+    </md-content>
     <md-content class="md-body-1">
         <p>{{location.properties.description}}</p>
     </md-content>
@@ -20,9 +29,12 @@
         <md-list-item ng-show="location.properties.fields.website && location.properties.fields.website.value">
             <md-icon class="material-icons">&#xE89E;</md-icon><p class="md-subhead"><a class="md-primary" href="{{location.properties.fields.website.value}}" target="_blank">www</a></p>
         </md-list-item>
+        <md-list-item ng-show="location.properties.fields.openinghours && location.properties.fields.openinghours.value">
+            <md-icon class="material-icons">&#xE8B5;</md-icon><p class="md-subhead">{{location.properties.fields.openinghours.value}}</p>
+        </md-list-item>
     </md-list>
 </content>
 <footer>
-    <md-button class="md-raised">Show on Map</md-button>
+    <md-button class="md-raised" ng-click="showOnMap()">Show on Map</md-button>
     <md-button class="md-raised md-accent" ng-click="getRoute()">Route</md-button>
 </footer>
