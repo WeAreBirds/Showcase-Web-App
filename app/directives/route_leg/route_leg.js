@@ -1,4 +1,8 @@
 ﻿angular.module('MapsIndoors').directive('routeLeg', function (locations, directionsRenderer, mapsIndoors) {
+    
+    var yInitVals = [0, 14, 24, 29, 36, 120, 144];
+    var xInitVals = [0, 14, 48, 51, 60, 236, 284];
+    var horizontalView = false;
     var _cache = {
         types: {}
     };
@@ -165,19 +169,31 @@
         };
     }
 
-    var stroke = (function () {
+    var stroke = function () {
         var canvas = document.createElement('canvas');
-        canvas.height = '12';
-        canvas.width = '1';
+        
+        if (!horizontalView) {
+            canvas.height = '12';
+            canvas.width = '1';
+        }
+        else {
+            canvas.height = '1';
+            canvas.width = '12';
+        }
 
         var ctx = canvas.getContext('2d');
-        ctx.moveTo(0, 4);
-        ctx.lineTo(0, 9);
+        if (!horizontalView) {
+            ctx.moveTo(0, 4);
+            ctx.lineTo(0, 9);
+        } else {
+            ctx.moveTo(4, 0);
+            ctx.lineTo(9, 0);
+        }
         ctx.strokeStyle = colors.primary;
         ctx.stroke();
 
         return ctx.createPattern(canvas, 'repeat');
-    })();
+    };
 
     function Labels(element, legs) {
         var el = element;
@@ -211,14 +227,14 @@
     google.maps.event.addListener(endMarker, 'click', function () {
         directionsRenderer.nextLeg();
     });
-    
+
     google.maps.event.addListener(directionsRenderer, 'directions_changed', function () {
         var directions = directionsRenderer.getDirections();
         if (!directions) {
             endMarker.setMap(null);
         }
     });
-    
+
     google.maps.event.addListener(directionsRenderer, 'legindex_changed', function () {
         var i = this.getLegIndex(),
             legs = this.getDirections().routes[0].legs;
@@ -286,50 +302,86 @@
             draw = new Draw(ctx, legs),
             labels = new Labels(element, legs),
             img = getType(scope.destination.properties.type).icon,
-            x = 14;
+            x0 = xInitVals[1],
+            x1 = xInitVals[1],
+            x2 = xInitVals[1],
+            x3 = xInitVals[1],
+            x4 = xInitVals[1],
+            x5 = xInitVals[1],
+            x6 = xInitVals[1],
+            y0 = yInitVals[0],
+            y1 = yInitVals[1],
+            y2 = yInitVals[2],
+            y3 = yInitVals[3],
+            y4 = yInitVals[4],
+            y5 = yInitVals[5],
+            y6 = yInitVals[6];
+
+        horizontalView = scope.horizontalView;
+
+        //canvas.style.position = 'fixed';
+        canvas.width = xInitVals[6] + '';
+        canvas.height = yInitVals[6] + '';
+        ctx.lineWidth = 2;
+
+        if (horizontalView) {
+            x0 = xInitVals[0],
+            x1 = xInitVals[1],
+            x2 = xInitVals[2],
+            x3 = xInitVals[3],
+            x4 = xInitVals[4],
+            x5 = xInitVals[5],
+            x6 = xInitVals[6],
+            y0 = yInitVals[4],
+            y1 = yInitVals[4],
+            y2 = yInitVals[4],
+            y3 = yInitVals[4],
+            y4 = yInitVals[4],
+            y5 = yInitVals[4],
+            y6 = yInitVals[4];
+
+            element.context.style.minWidth = x6 + 'px';
+            element.context.style.minHeight = '80px';
+            canvas.height = '80';
+
+        }
 
         if (scope.getLeg() === i) {
             element.focus();
         }
 
-
-
-        canvas.style.position = 'fixed';
-        canvas.width = '284';
-        canvas.height = '144';
-        ctx.lineWidth = 2;
-
-        element.append(canvas);
+        if (!horizontalView)
+            element.append(canvas);
 
         if (legs.length === 1) {
             ctx.beginPath();
-            ctx.moveTo(x, 36);
-            ctx.lineTo(x, 120);
+            ctx.moveTo(x4, y4);
+            ctx.lineTo(x5, y5);
             ctx.strokeStyle = colors.primary;
             ctx.stroke();
 
-            draw.start(i, x, 24);
-            draw.icon('image', x, 120, img);
+            draw.start(i, x2, y2);
+            draw.icon('image', x5, y5, img);
 
             element.append($('<label>Start</label>'));
             element.append($('<label>' + scope.destination.properties.name + '</label>'));
         }
         else if (i > 0 && i < legs.length - 1) {
-            ctx.moveTo(x, 36);
-            ctx.lineTo(x, 120);
+            ctx.moveTo(x4, y4);
+            ctx.lineTo(x5, y5);
             ctx.strokeStyle = colors.primary;
             ctx.stroke();
 
             ctx.beginPath();
-            ctx.moveTo(x, 0);
-            ctx.lineTo(x, 36);
-            ctx.moveTo(x, 120);
-            ctx.lineTo(x, 144);
-            ctx.strokeStyle = stroke;
+            ctx.moveTo(x0, y0);
+            ctx.lineTo(x4, y4);
+            ctx.moveTo(x5, y5);
+            ctx.lineTo(x6, y6);
+            ctx.strokeStyle = stroke();
             ctx.stroke();
 
-            draw.start(i, x, 24);
-            draw.end(i, x, 120);
+            draw.start(i, x2, y2);
+            draw.end(i, x5, y5);
 
             (function () {
                 var index = i;
@@ -381,8 +433,6 @@
                     visible: false
                 });
 
-
-
             })();
 
 
@@ -392,45 +442,48 @@
             console.log(labels.end(i));
         } else if (i === 0) {
             ctx.beginPath();
-            ctx.moveTo(x, 36);
-            ctx.lineTo(x, 120);
+            ctx.moveTo(x4, y4);
+            ctx.lineTo(x5, y5);
             ctx.strokeStyle = colors.primary;
             ctx.stroke();
 
             ctx.beginPath();
-            ctx.moveTo(x, 120);
-            ctx.lineTo(x, 144);
-            ctx.strokeStyle = stroke;
+            ctx.moveTo(x5, y5);
+            ctx.lineTo(x6, y6);
+            ctx.strokeStyle = stroke();
             ctx.stroke();
 
-            draw.start(i, x, 24);
-            draw.end(i, x, 120);
+            draw.start(i, x2, y2);
+            draw.end(i, x5, y5);
 
             element.append($('<label>Start</label>'));
             element.append($('<label>' + labels.end(i) + '</label>'));
         } else if (i === legs.length - 1) {
-            ctx.moveTo(x, 29);
-            ctx.lineTo(x, 0);
-            ctx.strokeStyle = stroke;
+            ctx.moveTo(x3, y3);
+            ctx.lineTo(x0, y0);
+            ctx.strokeStyle = stroke();
             ctx.stroke();
 
             ctx.beginPath();
-            ctx.moveTo(x, 36);
-            ctx.lineTo(x, 120);
+            ctx.moveTo(x4, y4);
+            ctx.lineTo(x5, y5);
             ctx.strokeStyle = colors.primary;
             ctx.stroke();
 
-            draw.start(i, x, 24);
+            draw.start(i, x2, y2);
 
             if (legs[i]._mi.type === 'google.maps.DirectionsLeg') {
-                draw.icon('place', x, 120);
+                draw.icon('place', x5, y5);
             } else {
-                draw.icon('image', x, 120, img);
+                draw.icon('image', x5, y5, img);
             }
 
             element.append($('<label>' + labels.start(i) + '</label>'));
             element.append($('<label>' + scope.destination.properties.name + '</label>'));
         }
+
+        if (horizontalView)
+            element.append(canvas);
 
     }
 

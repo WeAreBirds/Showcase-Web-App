@@ -1,6 +1,6 @@
 ﻿angular.module('MapsIndoors')
 
-.controller('route', function ($scope, $location, $routeParams, locations, mapsIndoors, googleMap, routeService, directionsRenderer, state) {
+.controller('route', function ($scope, $location, $routeParams, $mdSidenav, $mdBottomSheet, $mdMedia, locations, mapsIndoors, googleMap, routeService, directionsRenderer, state) {
     var predefined,
         myPosition,
         destinationId = $location.search().destination,
@@ -86,6 +86,12 @@
         $scope.find();
     };
 
+    $scope.closeHorizontalDirections = function () {
+        $scope.reset();
+        $mdBottomSheet.cancel();
+        $mdSidenav('left').open();
+    };
+
     $scope.setTravelmode = function (mode) {
         $scope.travelMode = mode;
         getRoute();
@@ -99,6 +105,7 @@
 
     $scope.setLeg = function (index) {
         directionsRenderer.setLegIndex(index);
+        updateHorizontalView(index);
     };
 
     $scope.isFirstLeg = function () {
@@ -111,10 +118,12 @@
 
     $scope.prevLeg = function () {
         directionsRenderer.previousLeg();
+        updateHorizontalView(directionsRenderer.getLegIndex());
     };
 
     $scope.nextLeg = function () {
         directionsRenderer.nextLeg();
+        updateHorizontalView(directionsRenderer.getLegIndex());
     };
 
     $scope.back = function () {
@@ -139,6 +148,21 @@
         clearRoute();
     };
 
+    function updateHorizontalView(index) {
+        if ($scope.horizontalView) {
+            var legElem = $('route-leg').get(index);
+            $(legElem).parent().animate({
+                scrollLeft: $(legElem).offset().left
+            }, 300);
+
+            google.maps.event.addListenerOnce(googleMap, 'idle', function() {
+                googleMap.panBy(
+                    0, 150
+                );
+            });
+
+        }
+    }
 
     function init(destination) {
         $scope.$apply(function () {
@@ -226,9 +250,31 @@
 
             directions.route(args).then(function (result) {
                 $scope.$apply(function () {
+                    if ($mdMedia('xs')) { 
+                        $mdSidenav('left').close();
+                        $scope.horizontalView = true;
+                        $mdBottomSheet.show({
+                            scope: $scope,
+                            preserveScope:true,
+                            controller: function () {},
+                            templateUrl: 'controllers/route/route-bottom-sheet.tpl.html',
+                            clickOutsideToClose: false,
+                            disableBackdrop: true
+                        }).then(function () {
+                            $scope.closeHorizontalDirections();
+                        }, function () {
+                            $scope.closeHorizontalDirections();
+                        });
+                    }
+
                     $scope.legs = result.routes[0].legs;
                     directionsRenderer.setDirections(result);
                     directionsRenderer.setLegIndex(0);
+                    google.maps.event.addListenerOnce(googleMap, 'idle', function () {
+                        googleMap.panBy(
+                            0, 120
+                        );
+                    });
                 });
 
             });

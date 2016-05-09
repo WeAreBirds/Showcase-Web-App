@@ -3,7 +3,9 @@
 .factory('googleMap', function ($location) {
     var element = document.getElementById('google-map'),
         map = new google.maps.Map(element, {
-            zoom: 17
+            zoom: 17,
+            mapTypeControl: false,
+            streetViewControl: false
         });
 
     return map;
