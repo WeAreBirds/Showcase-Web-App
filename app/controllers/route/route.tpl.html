@@ -1,5 +1,5 @@
 <section class="route">
-    <header>
+    <header ng-show="$mdMedia('gt-sm')">
         <img src="assets/bcdining.jpeg" height="171" />
     </header>
     <section class="search">
@@ -25,7 +25,7 @@
         <div class="searchbox-container md-body-1">
             <md-input-container md-no-float>
                 <input type="text"
-                       placeholder="{{network === 'WORLD' ? 'Search in Google Maps' : 'Search on venue'}}"
+                       placeholder="Select origin"
                        ng-model="fields.origin"
                        ng-readonly="reversed"
                        ng-change="find()" />
@@ -35,7 +35,7 @@
         <div class="searchbox-container md-body-1">
             <md-input-container md-no-float>
                 <input type="text"
-                       placeholder="{{network === 'WORLD' ? 'Search in Google Maps' : 'Search on venue'}}"
+                       placeholder="Select destination"
                        ng-model="fields.destination"
                        ng-readonly="!reversed"
                        ng-change="find()" />

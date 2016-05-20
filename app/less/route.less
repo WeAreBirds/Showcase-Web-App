@@ -140,10 +140,26 @@ md-sidenav {
         display: block;
         margin-left: 56px;
         line-height: 48px;
+        position: absolute;
+        top: 2px;
     }
 
     route-leg label:last-child {
         position: absolute;
         top: 96px;
+    }
+}
+
+.horizontal-directions {
+    overflow-x:auto;
+
+    route-leg > label { 
+        margin:0 20px 0 20px;
+        float:left;
+    } 
+    
+    route-leg > label + label { 
+        float:right;
+        margin-left:-80px;
     }
 }

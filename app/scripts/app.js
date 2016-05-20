@@ -34,7 +34,7 @@ angular.module('MapsIndoors', [
             controller: 'route'
         })
         .otherwise({
-            redirectTo: '/550c286964617400a4100000'
+            redirectTo: '/venue'
         });
    
     $locationProvider.html5Mode(true);
@@ -81,40 +81,52 @@ angular.module('MapsIndoors', [
         //        e.preventDefault();
         //    }
         //}
+        
+        //$scope.showSidenav = current.controller !== 'route';
 
-        if ($scope.venueId !== (current.pathParams ? current.pathParams.venue : '')) {
+        var venueOpener = function (venue) {
+            if (venue) {
+                if (!$routeParams.coordinates) {
+                    var bounds = new google.maps.LatLngBounds(),
+                        bbox = [-180, -90, 180, 90],
+                        sort = function (a, b) {
+                            return a === b ? 0 : a > b ? 1 : -1;
+                        };
+                    //this is a workaround for invalid data from MapToWeb.GeoJSON 
+                    venue.geometry.coordinates.forEach(function (ring) {
+                        var lng = ring.map(function (coords) {
+                            return coords[0];
+                        }).sort(sort);
+
+                        var lat = ring.map(function (coords) {
+                            return coords[1];
+                        }).sort(sort);
+
+                        bbox[0] = lng.last() >= bbox[0] ? lng.last() : bbox[0];
+                        bbox[2] = lng[0] <= bbox[2] ? lng[0] : bbox[2];
+
+                        bbox[1] = lat.last() >= bbox[1] ? lat.last() : bbox[1];
+                        bbox[3] = lat[0] <= bbox[3] ? lat[0] : bbox[3];
+                    });
+                    //----------------------------------------------------------//
+                    bounds.extend(new google.maps.LatLng(bbox[1], bbox[0]));
+                    bounds.extend(new google.maps.LatLng(bbox[3], bbox[2]));
+
+                    googleMap.fitBounds(bounds);
+                }
+                mapsIndoors.setVenue($scope.venueId);
+            }
+        };
+        var newVenueId = (current.pathParams ? current.pathParams.venue : '');
+        if ($scope.venueId !== newVenueId && newVenueId != 'venue') {
             $scope.venueId = $routeParams.venue;
-            venues.getVenue($scope.venueId).then(function (venue) {
-                if (venue) {
-                    if (!$routeParams.coordinates) {
-                        var bounds = new google.maps.LatLngBounds(),
-                            bbox = [-180, -90, 180, 90],
-                            sort = function (a, b) {
-                                return a === b ? 0 : a > b ? 1 : -1;
-                            };
-                        //this is a workaround for invalid data from MapToWeb.GeoJSON 
-                        venue.geometry.coordinates.forEach(function (ring) {
-                            var lng = ring.map(function (coords) {
-                                return coords[0];
-                            }).sort(sort);
-
-                            var lat = ring.map(function (coords) {
-                                return coords[1];
-                            }).sort(sort);
-
-                            bbox[0] = lng.last() >= bbox[0] ? lng.last() : bbox[0];
-                            bbox[2] = lng[0] <= bbox[2] ? lng[0] : bbox[2];
-
-                            bbox[1] = lat.last() >= bbox[1] ? lat.last() : bbox[1];
-                            bbox[3] = lat[0] <= bbox[3] ? lat[0] : bbox[3];
-                        });
-                        //----------------------------------------------------------//
-                        bounds.extend(new google.maps.LatLng(bbox[1], bbox[0]));
-                        bounds.extend(new google.maps.LatLng(bbox[3], bbox[2]));
-
-                        googleMap.fitBounds(bounds);
-                    }
-                    mapsIndoors.setVenue($scope.venueId);
+            venues.getVenue($scope.venueId).then(venueOpener);
+        } else {
+            venues.getVenues().then(function (venues) {
+                if (venues && venues[0]) {
+                    $routeParams.venue = venues[0].id;
+                    $scope.venueId = venues[0].id;
+                    venueOpener(venues[0]);
                 }
             });
         }
