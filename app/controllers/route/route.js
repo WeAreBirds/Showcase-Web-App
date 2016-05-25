@@ -11,7 +11,7 @@
             geodesic: true,
             strokeColor: '#2196F3',
             strokeOpacity: 1.0,
-            strokeWeight: 2,
+            strokeWeight: 3,
             map: googleMap,
             zIndex: 200
         }),
@@ -416,7 +416,9 @@
     state.getVenue().then(function (venue) {
         $.when(getMyPosition(), getPredefined(venue)).then(function () {
             myPosition = arguments[0];
-            predefined = arguments[1][0];
+            predefined = arguments[1][0].sort(function(a,b) {
+                return a.properties.name !== b.properties.name ? a.properties.name < b.properties.name ? -1 : 1 : 0;
+            });
 
             if ($scope.network === 'VENUE') {
                 $scope.locations = [myPosition].concat(predefined);

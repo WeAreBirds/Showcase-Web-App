@@ -36,7 +36,7 @@ angular.module('MapsIndoors', [
         .otherwise({
             redirectTo: '/venue'
         });
-   
+
     $locationProvider.html5Mode(true);
 })
 
@@ -81,7 +81,7 @@ angular.module('MapsIndoors', [
         //        e.preventDefault();
         //    }
         //}
-        
+
         //$scope.showSidenav = current.controller !== 'route';
 
         var venueOpener = function (venue) {
@@ -121,7 +121,7 @@ angular.module('MapsIndoors', [
         if ($scope.venueId !== newVenueId && newVenueId != 'venue') {
             $scope.venueId = $routeParams.venue;
             venues.getVenue($scope.venueId).then(venueOpener);
-        } else {
+        } else if (newVenueId === 'venue') {
             venues.getVenues().then(function (venues) {
                 if (venues && venues[0]) {
                     $routeParams.venue = venues[0].id;

@@ -46,7 +46,7 @@ angular.module('MapsIndoors')
      var dr = new mapsindoors.DirectionsRenderer({ mapsindoors: mapsIndoors, suppressMarkers: false });
      dr.setStyle('default', {
          strokeOpacity: 1,
-         strokeWeight: 5,
+         strokeWeight: 6,
          strokeColor: '#90CAF9'
      });
 

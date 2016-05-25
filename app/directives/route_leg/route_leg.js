@@ -1,11 +1,12 @@
-﻿angular.module('MapsIndoors').directive('routeLeg', function (locations, directionsRenderer, mapsIndoors) {
-    
-    var yInitVals = [0, 14, 24, 29, 36, 120, 144];
-    var xInitVals = [0, 14, 48, 51, 60, 236, 284];
-    var horizontalView = false;
-    var _cache = {
-        types: {}
-    };
+﻿baseUrl = (document.baseURI || (document.getElementsByName('base')[0] || {}).href);
+angular.module('MapsIndoors').directive('routeLeg', function (locations, directionsRenderer, mapsIndoors) {
+    var yInitVals = [0, 14, 24, 29, 36, 120, 144],
+        xInitVals = [0, 14, 48, 51, 60, 236, 284],
+        horizontalView = false,
+        _cache = {
+          types: {}
+        };
+        
     function getType(type) {
         if (_cache.types) {
             return _cache.types[type] || {};
@@ -28,20 +29,7 @@
     function Draw(context, legs) {
         var ctx = context,
             icons = {
-                base: function (ctx, cx, cy) {
-                    ctx.save();
-                    ctx.beginPath();
-                    ctx.arc(cx, cy, 13, 0, 2 * Math.PI, false);
-                    ctx.shadowBlur = 2;
-                    ctx.shadowColor = '#a9a9a9';
-                    ctx.shadowOffsetX = 0.5;
-                    ctx.shadowOffsetY = 0.5;
-                    ctx.fillStyle = '#fff';
-                    ctx.fill();
-                    ctx.restore();
-                },
-                elevator: function (ctx, cx, cy) {
-                    this.base(ctx, cx, cy);
+                elevator: function (ctx, cx, cy, deferred) {
                     var icon = new Image();
 
                     icon.onload = function () {
@@ -49,11 +37,11 @@
                         ctx.translate(cx - 9, cy - 9);
                         ctx.drawImage(icon, 0, 0, 24, 24, 0, 0, 18, 18);
                         ctx.restore();
+                        deferred.resolve();
                     };
-                    icon.src = 'https://materialdesignicons.com/api/download/icon/svg/8A9045D4-D6AC-4660-8C55-D622156A1B8C';
+                    icon.src = baseUrl + '/assets/elevator.svg';
                 },
-                venue: function (ctx, cx, cy) {
-                    this.base(ctx, cx, cy);
+                venue: function (ctx, cx, cy, deferred) {
                     ctx.save();
                     ctx.fillStyle = colors.primary;
                     ctx.font = '18px "Material Icons"';
@@ -61,9 +49,9 @@
                     ctx.textBaseline = "middle";
                     ctx.fillText(String.fromCharCode('0xE0AF'), cx, cy);
                     ctx.restore();
+                    deferred.resolve();
                 },
-                place: function (ctx, cx, cy) {
-                    this.base(ctx, cx, cy);
+                place: function (ctx, cx, cy, deferred) {
                     ctx.save();
                     ctx.fillStyle = colors.primary;
                     ctx.font = '18px "Material Icons"';
@@ -71,20 +59,21 @@
                     ctx.textBaseline = "middle";
                     ctx.fillText(String.fromCharCode('0xE55F'), cx, cy);
                     ctx.restore();
+                    deferred.resolve();
                 },
-                stairs: function (ctx, cx, cy) {
-                    this.base(ctx, cx, cy);
+                steps: function (ctx, cx, cy, deferred) {
                     var icon = new Image();
-
                     icon.onload = function () {
                         ctx.save();
                         ctx.translate(cx - 6, cy - 6);
                         ctx.drawImage(icon, 0, 80, 360, 285, 0, 0, 12, 12);
                         ctx.restore();
+                        deferred.resolve();
                     };
-                    icon.src = 'http://www.clipartsfree.net/svg/15761-aiga-stairs-download.svg';
+
+                    icon.src = baseUrl + '/assets/stairs.svg';
                 },
-                start: function (ctx, cx, cy) {
+                start: function (ctx, cx, cy, deferred) {
                     ctx.save();
                     ctx.beginPath();
                     ctx.arc(cx, cy, 10.5, 0, 2 * Math.PI, false);
@@ -108,37 +97,54 @@
                     //ctx.fillStyle = colors.primary;
                     //ctx.fill();
                     ctx.restore();
-                },
-                image: function (ctx, cx, cy, url) {
-                    var icon = new Image();
-                    //this.base(ctx, cx, cy);
-                    icon.onload = function () {
-                        var height = this.width > 33 ? (this.height / this.width * 33) : this.height;
-                        var width = this.width > 33 ? 33 : this.width;
-                        ctx.save();
-                        ctx.drawImage(icon, 0, 0, this.width, this.height, cx - (width / 2), cy - (height / 2), width, height);
-                        ctx.restore();
-                    };
-                    icon.src = url;
+                    deferred.resolve();
                 }
-
             };
 
         return {
-            icon: function (icon, cx, cy) {
-                var args = [].slice.call(arguments);
-                args[0] = ctx;
-                icons[icon].apply(icons, args);
+            icon: function (icon, cx, cy, iconOnly) {
+                var args = [].slice.call(arguments),
+                    deferred = $.Deferred();
+                if (icons[icon]) {
+                    if (!iconOnly) {
+                        ctx.save();
+                        ctx.beginPath();
+                        ctx.arc(cx, cy, 13, 0, 2 * Math.PI, false);
+                        ctx.shadowBlur = 2;
+                        ctx.shadowColor = '#a9a9a9';
+                        ctx.shadowOffsetX = 0.5;
+                        ctx.shadowOffsetY = 0.5;
+                        ctx.fillStyle = '#fff';
+                        ctx.fill();
+                        ctx.restore();
+                    }
+                    icons[icon](ctx, cx, cy, deferred);
+                } else {
+                    deferred.reject();
+                }
+                return deferred.promise();
+            },
+            image: function (cx, cy, url) {
+                var icon = new Image();
+                //this.base(ctx, cx, cy);
+                icon.onload = function () {
+                    var height = this.width > 33 ? (this.height / this.width * 33) : this.height;
+                    var width = this.width > 33 ? 33 : this.width;
+                    ctx.save();
+                    ctx.drawImage(icon, 0, 0, this.width, this.height, cx - (width / 2), cy - (height / 2), width, height);
+                    ctx.restore();
+                };
+                icon.src = url;
             },
             start: function (i, cx, cy) {
                 if (i === 0) {
-                    this.icon('start', cx, cy);
+                    this.icon('start', cx, cy, true);
                 } else if (legs[i - 1]._mi.type !== legs[i]._mi.type) {
                     this.icon('venue', cx, cy);
                 } else {
                     switch (legs[i].steps[0].highway) {
                         case 'steps':
-                            this.icon('stairs', cx, cy);
+                            this.icon('steps', cx, cy);
                             break;
                         case 'elevator':
                             this.icon('elevator', cx, cy);
@@ -155,7 +161,7 @@
                 } else {
                     switch (legs[i + 1].steps[0].highway) {
                         case 'steps':
-                            this.icon('stairs', cx, cy);
+                            this.icon('steps', cx, cy);
                             break;
                         case 'elevator':
                             this.icon('elevator', cx, cy);
@@ -223,6 +229,7 @@
     }
 
     var endMarker = new google.maps.Marker();
+    var startMarker = new google.maps.Marker();
 
     google.maps.event.addListener(endMarker, 'click', function () {
         directionsRenderer.nextLeg();
@@ -231,21 +238,52 @@
     google.maps.event.addListener(directionsRenderer, 'directions_changed', function () {
         var directions = directionsRenderer.getDirections();
         if (!directions) {
+            startMarker.setMap(null);
             endMarker.setMap(null);
         }
     });
 
     google.maps.event.addListener(directionsRenderer, 'legindex_changed', function () {
         var i = this.getLegIndex(),
-            legs = this.getDirections().routes[0].legs;
+            legs = this.getDirections().routes[0].legs,
+            label, metrics,
+            map = this.getMap(),
+            type = i === 0 ? 'start' : legs[i].steps[0].highway.toLowerCase();
+
+
+        var start = legs[i].start_location,
+            icon = document.createElement('canvas'),
+            ctx = icon.getContext('2d'),
+            draw = new Draw(ctx, legs);
+
+        ctx.beginPath();
+        ctx.fillStyle = '#fff';
+        ctx.arc(16, 16, 11.5, 0, 2 * Math.PI, false);
+        ctx.fill();
+        draw.icon(type, 16, 16, true).then(function () {
+
+            var imgData = icon.toDataURL('image/png');
+
+            startMarker.setOptions({
+                icon: {
+                    url: imgData, anchor: new google.maps.Point(16, 16)
+                },
+                position: start,
+                map: map,
+                floor: start.zLevel,
+                visible: true
+            });
+        });
 
         if (i < legs.length - 1 && (legs[i].end_location.zLevel !== undefined && legs[i + 1].end_location.zLevel !== undefined && legs[i].end_location.zLevel !== legs[i + 1].end_location.zLevel)) {
-            var type = legs[i + 1].steps[0].highway,
-                icon = document.createElement('canvas'),
-                ctx = icon.getContext('2d'),
-                start = legs[i + 1].start_location,
-                end = legs[i + 1].end_location;
-
+            var end = legs[i + 1].end_location;
+            type = legs[i + 1].steps[0].highway;
+            icon = document.createElement('canvas');
+            ctx = icon.getContext('2d');
+            draw = new Draw(ctx, legs);
+            start = legs[i + 1].start_location;
+            
+            
             if (Object.typeOf(legs[i + 1].start_location.lat) === 'function') {
                 start = { lat: legs[i + 1].start_location.lat(), lng: legs[i + 1].start_location.lng() };
             }
@@ -254,15 +292,19 @@
                 end = { lat: legs[i + 1].end_location.lat(), lng: legs[i + 1].end_location.lng() };
             }
 
+            label = 'Level ' + start.zLevel + ' → Level ' + end.zLevel;
             icon.height = 32;
-            icon.width = 128;
+            icon.width = 300;
 
             ctx.save();
+            ctx.textBaseline = 'middle';
+            ctx.font = '12px Roboto';
+            metrics = ctx.measureText(label);
 
             ctx.beginPath();
             ctx.fillStyle = colors.accent;
-            ctx.arc(72, 16, 9.5, 0, 2 * Math.PI, false);
-            ctx.rect(16, 6.5, 56, 19);
+            ctx.arc(40 + metrics.width, 16, 9.5, 0, 2 * Math.PI, false);
+            ctx.rect(16, 6.5, 24 + metrics.width, 19);
             ctx.fill();
             ctx.beginPath();
             ctx.fillStyle = '#fff';
@@ -272,20 +314,21 @@
             ctx.strokeStyle = colors.primary;
             ctx.stroke();
             ctx.save();
-            ctx.textBaseline = 'middle';
-            ctx.fillStyle = '#000';
-            ctx.font = '12px Roboto';
-            ctx.fillText(start.zLevel + ' → ' + end.zLevel, 36, 16);
+            ctx.fillStyle = '#fff';
+            ctx.fillText(label, 36, 16);
 
+            draw.icon('steps', 16, 16, true).then(function () {
+                var imgData = icon.toDataURL('image/png');
 
-            var imgData = icon.toDataURL('image/png');
-
-            endMarker.setOptions({
-                icon: { url: imgData, anchor: new google.maps.Point(16, 16) },
-                position: { lat: start.lat, lng: start.lng },
-                map: this.getMap(),
-                floor: start.zLevel,
-                visible: true
+                endMarker.setOptions({
+                    icon: {
+                        url: imgData, anchor: new google.maps.Point(16, 16)
+                    },
+                    position: { lat: start.lat, lng: start.lng },
+                    map: map,
+                    floor: start.zLevel,
+                    visible: true
+                });
             });
         } else {
             endMarker.setOptions({
@@ -317,6 +360,7 @@
             y5 = yInitVals[5],
             y6 = yInitVals[6];
 
+        console.log(img);
         horizontalView = scope.horizontalView;
 
         //canvas.style.position = 'fixed';
@@ -325,19 +369,19 @@
         ctx.lineWidth = 2;
 
         if (horizontalView) {
-            x0 = xInitVals[0],
-            x1 = xInitVals[1],
-            x2 = xInitVals[2],
-            x3 = xInitVals[3],
-            x4 = xInitVals[4],
-            x5 = xInitVals[5],
-            x6 = xInitVals[6],
-            y0 = yInitVals[4],
-            y1 = yInitVals[4],
-            y2 = yInitVals[4],
-            y3 = yInitVals[4],
-            y4 = yInitVals[4],
-            y5 = yInitVals[4],
+            x0 = xInitVals[0];
+            x1 = xInitVals[1];
+            x2 = xInitVals[2];
+            x3 = xInitVals[3];
+            x4 = xInitVals[4];
+            x5 = xInitVals[5];
+            x6 = xInitVals[6];
+            y0 = yInitVals[4];
+            y1 = yInitVals[4];
+            y2 = yInitVals[4];
+            y3 = yInitVals[4];
+            y4 = yInitVals[4];
+            y5 = yInitVals[4];
             y6 = yInitVals[4];
 
             element.context.style.minWidth = x6 + 'px';
@@ -361,7 +405,7 @@
             ctx.stroke();
 
             draw.start(i, x2, y2);
-            draw.icon('image', x5, y5, img);
+            draw.image(x5, y5, img);
 
             element.append($('<label>Start</label>'));
             element.append($('<label>' + scope.destination.properties.name + '</label>'));
@@ -382,59 +426,6 @@
 
             draw.start(i, x2, y2);
             draw.end(i, x5, y5);
-
-            (function () {
-                var index = i;
-                var type = legs[i + 1].steps[0].highway,
-                icon = document.createElement('canvas'),
-                ctx = icon.getContext('2d'),
-                start = legs[i + 1].start_location,
-                end = legs[i + 1].end_location;
-
-                if (Object.typeOf(legs[i + 1].start_location.lat) === 'function') {
-                    start = { lat: legs[i + 1].start_location.lat(), lng: legs[i + 1].start_location.lng() };
-                }
-
-                if (Object.typeOf(legs[i + 1].end_location.lat) === 'function') {
-                    end = { lat: legs[i + 1].end_location.lat(), lng: legs[i + 1].end_location.lng() };
-                }
-
-                icon.height = 32;
-                icon.width = 128;
-
-                ctx.save();
-
-                ctx.beginPath();
-                ctx.fillStyle = colors.accent;
-                ctx.arc(72, 16, 9.5, 0, 2 * Math.PI, false);
-                ctx.rect(16, 6.5, 56, 19);
-                ctx.fill();
-                ctx.beginPath();
-                ctx.fillStyle = '#fff';
-                ctx.arc(16, 16, 11.5, 0, 2 * Math.PI, false);
-                ctx.fill();
-                ctx.lineWidth = 2;
-                ctx.strokeStyle = colors.primary;
-                ctx.stroke();
-                ctx.save();
-                ctx.textBaseline = 'middle';
-                ctx.fillStyle = '#000';
-                ctx.font = '12px Roboto';
-                ctx.fillText(start.zLevel + ' → ' + end.zLevel, 36, 16);
-
-
-                var imgData = icon.toDataURL('image/png');
-
-                var marker = new google.maps.Marker({
-                    icon: { url: imgData, anchor: new google.maps.Point(16, 16) },
-                    position: { lat: start.lat, lng: start.lng },
-                    map: directionsRenderer.getMap(),
-                    floor: start.zLevel,
-                    visible: false
-                });
-
-            })();
-
 
             element.append($('<label>' + labels.start(i) + '</label>'));
             element.append($('<label>' + labels.end(i) + '</label>'));
@@ -475,15 +466,16 @@
             if (legs[i]._mi.type === 'google.maps.DirectionsLeg') {
                 draw.icon('place', x5, y5);
             } else {
-                draw.icon('image', x5, y5, img);
+                draw.image(x5, y5, img);
             }
 
             element.append($('<label>' + labels.start(i) + '</label>'));
             element.append($('<label>' + scope.destination.properties.name + '</label>'));
         }
 
-        if (horizontalView)
+        if (horizontalView) {
             element.append(canvas);
+		}
 
     }
 

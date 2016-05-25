@@ -25,7 +25,7 @@ angular.module('MapsIndoors')
                     mapsIndoors.setFloor($scope.location.properties.floor);
                     mapsIndoors.setLocationsVisible(false);
                     googleMap.setCenter({ lat: $scope.location.geometry.coordinates[1], lng: $scope.location.geometry.coordinates[0] });
-                    googleMap.setZoom(21);
+                    googleMap.setZoom(19);
                     mapsIndoors.find(location.id);
 
                 }
